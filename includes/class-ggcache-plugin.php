@@ -18,6 +18,8 @@ class Ggcache_Plugin
     // 删除插件执行的代码
     public static function plugin_uninstall()
     {
+        // 删除advanced-cache.php 文件
+        Ggcache_Advanced::remove_advanced_cache_file();
         // 删除配置
         delete_option('ggcache_options');
     }
@@ -250,13 +252,6 @@ class Ggcache_Plugin
         if (!current_user_can('manage_options')) {
             return;
         }
-        if (!empty($_GET['clear_cache'])) {
-            self::clear_cache();
-            add_settings_error('ggcache', 'ggcache_message', '清除缓存成功。', 'updated');
-            settings_errors('ggcache');
-            echo '<script>location.href="' . esc_url($_SERVER['HTTP_REFERER']) . '";</script>';
-            exit();
-        }
         ?>
         <div class="wrap">
             <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
@@ -290,205 +285,36 @@ class Ggcache_Plugin
     }
 
     /**
-     * 获取redis连接对象
-     * @return false|Redis
-     */
-    public static function get_redis()
-    {
-        global $ggcache_options;
-        if (!class_exists('Redis') || empty($ggcache_options['redis_host'])) {
-            return false;
-        }
-        static $redis;
-        if (empty($redis)) {
-            try {
-                $redis = new Redis();
-                $redis_timeout = 1;
-                if (!empty($ggcache_options['redis_timeout'])) {
-                    $redis_timeout = intval($ggcache_options['redis_timeout']);
-                }
-                if (!empty($ggcache_options['redis_port'])) {
-                    $result = $redis->connect($ggcache_options['redis_host'], $ggcache_options['redis_port'], $redis_timeout);
-                } else {
-                    $result = $redis->connect($ggcache_options['redis_host']);
-                }
-                if (!$result) {
-                    return false;
-                }
-                // 设置密码
-                if (!empty($ggcache_options['redis_password'])) {
-                    $result = $redis->auth($ggcache_options['redis_password']);
-                    if (!$result) {
-                        return false;
-                    }
-                }
-                // 选择数据库
-                if (isset($ggcache_options['redis_db']) && is_numeric($ggcache_options['redis_db'])) {
-                    $result = $redis->select($ggcache_options['redis_db']);
-                    if (!$result) {
-                        return false;
-                    }
-                }
-                return $redis;
-            } catch (Exception $e) {
-                return false;
-            }
-        }
-        return $redis;
-    }
-
-    /**
-     * memcache连接
-     * @return bool|Memcache
-     */
-    public static function get_memcache()
-    {
-        global $ggcache_options;
-        if (!function_exists('memcache_connect') || empty($ggcache_options['memcache_host'])) {
-            return false;
-        }
-        static $memcache;
-        if (empty($memcache)) {
-            $memcache_port = 0;
-            if (!empty($ggcache_options['memcache_port'])) {
-                $memcache_port = intval($ggcache_options['memcache_port']);
-            }
-            $memcache_timeout = 1;
-            if (!empty($ggcache_options['memcache_timeout'])) {
-                $memcache_timeout = intval($ggcache_options['memcache_timeout']);
-            }
-            try {
-                $memcache = @memcache_connect($ggcache_options['memcache_host'], $memcache_port, $memcache_timeout);
-                if (empty($memcache)) {
-                    return false;
-                }
-                return $memcache;
-            } catch (Exception $e) {
-                return false;
-            }
-        }
-        return $memcache;
-    }
-
-    /**
-     * 显示缓存
+     * 引入sweetalert2弹窗组件
      * @return void
      */
-    public static function show_cache()
+    public static function wp_enqueue_scripts()
     {
-        global $ggcache_options;
-        global $ggcache_cache_key;
-        switch ($ggcache_options['type']) {
-            case 1:
-                // 从文件获取
-                if (file_exists(GGCACHE_PLUGIN_DIR . 'cache/.' . $ggcache_cache_key)) {
-                    $data = file_get_contents(GGCACHE_PLUGIN_DIR . 'cache/.' . $ggcache_cache_key);
-                    $unserialize_data = unserialize($data);
-                    if (empty($unserialize_data)) {
-                        return;
-                    }
-                    if (empty($unserialize_data['html']) || empty($unserialize_data['create_time'])) {
-                        return;
-                    }
-                    $timeout = intval($ggcache_options['timeout']);
-                    if (($unserialize_data['create_time'] + $timeout) > time()) {
-                        ob_end_clean();
-                        // 显示缓存
-                        echo $unserialize_data['html'];
-                        exit();
-                    }
-                }
-                break;
-            case 2:
-                // 从Redis获取
-                $redis = self::get_redis();
-                if (!empty($redis)) {
-                    $data = $redis->get($ggcache_cache_key);
-                    if (empty($data)) {
-                        return;
-                    }
-                    $unserialize_data = unserialize($data);
-                    if (empty($unserialize_data)) {
-                        return;
-                    }
-                    ob_end_clean();
-                    // 显示缓存
-                    echo $unserialize_data;
-                    exit();
-                }
-                break;
-            case 3:
-                // 从memcache获取
-                $memcache = self::get_memcache();
-                if (!empty($memcache)) {
-                    $data = $memcache->get($ggcache_cache_key);
-                    if (empty($data)) {
-                        return;
-                    }
-                    $unserialize_data = unserialize($data);
-                    if (empty($unserialize_data)) {
-                        return;
-                    }
-                    ob_end_clean();
-                    // 显示缓存
-                    echo $unserialize_data;
-                    exit();
-                }
-                break;
-        }
-    }
-
-    /**
-     * 保存缓存
-     * @return void
-     */
-    public static function save_cache()
-    {
-        // 用户登录了，不缓存
-        if (is_user_logged_in()) {
-            return;
-        }
-        global $ggcache_options;
-        global $ggcache_cache_key;
-        $html = ob_get_clean();
-        if (!empty($html)) {
-            // 兼容低版本php
-            $can_save = true;
-            if (function_exists('http_response_code') && 200 != http_response_code()) {
-                $can_save = false;
-            }
-            if ($can_save) {
-                switch ($ggcache_options['type']) {
-                    case 1:
-                        if (!is_dir(GGCACHE_PLUGIN_DIR . 'cache')) {
-                            mkdir(GGCACHE_PLUGIN_DIR . 'cache', 0777, true);
-                        }
-                        $data = serialize(array(
-                            'html' => $html,
-                            'create_time' => time()
-                        ));
-                        // 保存到文件
-                        file_put_contents(GGCACHE_PLUGIN_DIR . 'cache/.' . $ggcache_cache_key, $data);
-                        break;
-                    case 2:
-                        // 缓存到redis
-                        $redis = self::get_redis();
-                        if (!empty($redis)) {
-                            $timeout = intval($ggcache_options['timeout']);
-                            $redis->setEx($ggcache_cache_key, $timeout, serialize($html));
-                        }
-                        break;
-                    case 3:
-                        // 缓存到memcache
-                        $memcache = self::get_memcache();
-                        if (!empty($memcache)) {
-                            $timeout = intval($ggcache_options['timeout']);
-                            $memcache->set($ggcache_cache_key, serialize($html), MEMCACHE_COMPRESSED, $timeout);
-                        }
-                        break;
-                }
-            }
-            echo $html;
+        if (!empty($_GET['page']) && 'ggcache-setting' === $_GET['page']) {
+            // 添加静态文件
+            // 添加同步文章js文件
+            wp_enqueue_script(
+                'ggcache',
+                plugins_url('/js/sweetalert2.min.js', GGCACHE_PLUGIN_FILE),
+                array(),
+                '0.0.1',
+                true
+            );
+            wp_enqueue_script(
+                'ggcache-clear-cache',
+                plugins_url('/js/clear-cache.min.js', GGCACHE_PLUGIN_FILE),
+                array('jquery'),
+                '0.0.1',
+                true
+            );
+            wp_localize_script(
+                'ggcache-clear-cache',
+                'ggcache_obj',
+                array(
+                    'ajax_url' => admin_url('admin-ajax.php'),
+                    'nonce' => wp_create_nonce('ggcache'),
+                )
+            );
         }
     }
 
@@ -496,32 +322,15 @@ class Ggcache_Plugin
      * 清除缓存
      * @return void
      */
-    public static function clear_cache()
+    public static function wp_ajax_clear_cache()
     {
-        global $ggcache_options;
-        switch ($ggcache_options['type']) {
-            case 1:
-                $files = scandir(GGCACHE_PLUGIN_DIR . 'cache');
-                foreach ($files as $file) {
-                    if ($file == '.' || $file == '..') {
-                        continue;
-                    }
-                    $f = GGCACHE_PLUGIN_DIR . 'cache/' . $file;
-                    @unlink($f);
-                }
-                break;
-            case 2:
-                $redis = self::get_redis();
-                if (!empty($redis)) {
-                    $redis->flushDB();
-                }
-                break;
-            case 3:
-                $memcache = self::get_memcache();
-                if (!empty($memcache)) {
-                    $memcache->flush();
-                }
-                break;
+        check_ajax_referer('ggcache');
+        $result = Ggcache_Advanced::clear_cache();
+        if ($result) {
+            $status = 1;
+        } else {
+            $status = 0;
         }
+        wp_send_json(array('status' => $status));
     }
 }
