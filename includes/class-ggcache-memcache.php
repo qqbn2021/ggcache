@@ -85,7 +85,7 @@ class Ggcache_Memcache
         if ($this->is_memcache) {
             return $this->memcache_obj->set(md5($key), $value, MEMCACHE_COMPRESSED, $expire);
         }
-        return $this->memcache_obj->set(md5($key), $value, time() + $expire);
+        return $this->memcache_obj->set(md5($key), $value, $expire);
     }
 
     /**

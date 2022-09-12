@@ -98,21 +98,25 @@ class Ggcache_Advanced
                 'html' => $buffer,
                 'headers' => headers_list(),
             );
+            $expire = 3600;
+            if (!empty($ggcache_options['timeout'])) {
+                $expire = (int)$ggcache_options['timeout'];
+            }
             switch ($ggcache_options['type']) {
                 case 1:
                     // 文件
                     require_once $ggcache_plugin_path . '/ggcache/includes/class-ggcache-file.php';
-                    Ggcache_File::get_instance()->set($ggcache_cache_key, $data);
+                    Ggcache_File::get_instance()->set($ggcache_cache_key, $data, $expire);
                     break;
                 case 2:
                     // Redis
                     require_once $ggcache_plugin_path . '/ggcache/includes/class-ggcache-redis.php';
-                    Ggcache_Redis::get_instance($ggcache_options['redis_host'], $ggcache_options['redis_port'], $ggcache_options['redis_password'], $ggcache_options['redis_db'], $ggcache_options['redis_timeout'])->set($ggcache_cache_key, $data);
+                    Ggcache_Redis::get_instance($ggcache_options['redis_host'], $ggcache_options['redis_port'], $ggcache_options['redis_password'], $ggcache_options['redis_db'], $ggcache_options['redis_timeout'])->set($ggcache_cache_key, $data, $expire);
                     break;
                 case 3:
                     // Memcached
                     require_once $ggcache_plugin_path . '/ggcache/includes/class-ggcache-memcache.php';
-                    Ggcache_Memcache::get_instance($ggcache_options['memcache_host'], $ggcache_options['memcache_port'], $ggcache_options['memcache_timeout'])->set($ggcache_cache_key, $data);
+                    Ggcache_Memcache::get_instance($ggcache_options['memcache_host'], $ggcache_options['memcache_port'], $ggcache_options['memcache_timeout'])->set($ggcache_cache_key, $data, $expire);
                     break;
             }
         }
