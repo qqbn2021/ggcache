@@ -13,6 +13,8 @@ class Ggcache_Plugin
             'salt' => mt_rand(100000, 999999),
             'timeout' => 3600
         ));
+        // 开启了缓存
+        Ggcache_Advanced::copy_advanced_cache_file();
     }
 
     // 删除插件执行的代码
@@ -22,6 +24,13 @@ class Ggcache_Plugin
         Ggcache_Advanced::remove_advanced_cache_file();
         // 删除配置
         delete_option('ggcache_options');
+    }
+
+    // 禁用插件执行的代码
+    public static function plugin_deactivation()
+    {
+        // 插件已禁用，删除advanced-cache.php 文件
+        Ggcache_Advanced::remove_advanced_cache_file();
     }
 
     /**
@@ -297,14 +306,14 @@ class Ggcache_Plugin
                 'ggcache',
                 plugins_url('/js/sweetalert2.min.js', GGCACHE_PLUGIN_FILE),
                 array(),
-                '0.0.1',
+                '0.0.2',
                 true
             );
             wp_enqueue_script(
                 'ggcache-clear-cache',
                 plugins_url('/js/clear-cache.min.js', GGCACHE_PLUGIN_FILE),
                 array('jquery'),
-                '0.0.1',
+                '0.0.2',
                 true
             );
             wp_localize_script(

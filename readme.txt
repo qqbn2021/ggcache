@@ -5,7 +5,7 @@ Tags:网站加速, 缓存, redis缓存, Memcached缓存, 页面加速, 静态化
 Requires at least: 5.0
 Requires PHP:5.3
 Tested up to: 6.0
-Stable tag: 0.0.1
+Stable tag: 0.0.2
 License: GNU General Public License v2.0 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,10 +62,16 @@ License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 == Upgrade Notice ==
 
+= 0.0.2 =
+* 解决了一个bug
+
 = 0.0.1 =
 参考Changelog说明
 
 == Changelog ==
+
+= 0.0.2 =
+* 解决了一个bug
 
 = 0.0.1 =
 * 新增文件、Redis、Memcached页面缓存方式

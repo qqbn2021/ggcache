@@ -3,7 +3,7 @@
  * Plugin Name:果果加速
  * Plugin URI:https://www.ggdoc.cn/plugin/5.html
  * Description:支持文件、Redis、Memcached缓存加速，让页面浏览更快！
- * Version:0.0.1
+ * Version:0.0.2
  * Requires at least: 5.0
  * Requires PHP:5.3
  * Author:果果开发
@@ -41,6 +41,8 @@ spl_autoload_register('ggcache_autoload');
 register_activation_hook(GGCACHE_PLUGIN_FILE, array('Ggcache_Plugin', 'plugin_activation'));
 // 删除插件
 register_uninstall_hook(GGCACHE_PLUGIN_FILE, array('Ggcache_Plugin', 'plugin_uninstall'));
+// 禁用插件
+register_deactivation_hook(GGCACHE_PLUGIN_FILE, array('Ggcache_Plugin', 'plugin_deactivation'));
 // 添加页面
 add_action('admin_init', array('Ggcache_Plugin', 'admin_init'));
 // 添加菜单
